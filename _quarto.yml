@@ -13,11 +13,11 @@ website:
       - text: "Capstones"
         menu:
           - text: "Population Inference Using a Hidden Markov Model Approach"
-            href: projects/StatisticalGenetics/statgen.qmd
+            href: projects/StatisticalGenetics/StatisticalGeneticsCapstone.qmd
           - text: "Spending in Vain? The Effect of Spending in the 2016 and 2020 US Presidential Elections"
             href: projects/PoliticalScience/PoliticalScienceCapstone.pdf
           - text: "Food Accessibility in Minneapolis: A Study of Public Transit"
-            href: projects/DataScience/datascience.qmd
+            href: projects/DataScience/DataScienceCapstone.qmd
 
 format:
   html:
