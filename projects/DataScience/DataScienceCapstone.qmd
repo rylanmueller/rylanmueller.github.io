@@ -10,21 +10,20 @@ output: html_document
 ```
 
 ### Motivation and Research Question:
-In urban areas across the country, issues of food insecurity and public transportation are critical to the health and well-being of communities. This is certainly the case in Minnesota, where according to Hunger Solutions, 1 in 9 people, or nearly 500,000 Minnesotans, are food insecure. While food insecurity and public transit access are both issues that public policymakers and social scientists are concerned with, we wanted to investigate the intersection between the two with the research question: Where should a food shelf be placed in Minneapolis to support the most people in the most need? In other words, we were interested in the relationship between transit and food accessibility in Minneapolis. It seemed intuitive that a lack of access to reliable, fast public transit would exacerbate the effects of urban food deserts, making it far harder for disadvantaged or low income people to get to food sources. However, we wanted to better understand the nature of this relationship both geographically and quantitatively. 
 
-Additional resources on food insecurity and public transit in Minnesota and the Twin Cities: <br>
-1. University of Minnesota Food Security Dashboard: https://hfhl.umn.edu/resources/dashboardintro <br>
-2. Minnesota Department of Health: https://www.health.state.mn.us/docs/communities/titlev/foodaccess.pdf <br>
-3. Twin Cities Public Transit Background:  https://doitgreen.org/topics/transportation/history-transit-twin-cities/ <br>
+In urban areas across the country, issues of food insecurity and public transportation are critical to the health and well-being of communities. This is certainly the case in Minnesota, where according to Hunger Solutions, 1 in 9 people, or nearly 500,000 Minnesotans, are food insecure. While food insecurity and public transit access are both issues that public policymakers and social scientists are concerned with, we wanted to investigate the intersection between the two with the research question: Where should a food shelf be placed in Minneapolis to support the most people in the most need? In other words, we were interested in the relationship between transit and food accessibility in Minneapolis. It seemed intuitive that a lack of access to reliable, fast public transit would exacerbate the effects of urban food deserts, making it far harder for disadvantaged or low income people to get to food sources. However, we wanted to better understand the nature of this relationship both geographically and quantitatively.
 
-### Data Sources 
+Additional resources on food insecurity and public transit in Minnesota and the Twin Cities: <br> 1. University of Minnesota Food Security Dashboard: https://hfhl.umn.edu/resources/dashboardintro <br> 2. Minnesota Department of Health: https://www.health.state.mn.us/docs/communities/titlev/foodaccess.pdf <br> 3. Twin Cities Public Transit Background: https://doitgreen.org/topics/transportation/history-transit-twin-cities/ <br>
+
+### Data Sources
+
 We used many data sources to investigate our research questions. They included:
 
-1. Minnesota Geospatial Commons: Transit routes, stops, and land use
-2. Open Data Minneapolis: Grocery store and food shelf addresses and Minneapolis city boundary line
-3. Hennepin County GIS: Address points data
-4. Google Maps API: Public transit time data 
-5. US Census Bureau: TIGER/line Shape files for tracts and block groups  <br>
+1.  Minnesota Geospatial Commons: Transit routes, stops, and land use
+2.  Open Data Minneapolis: Grocery store and food shelf addresses and Minneapolis city boundary line
+3.  Hennepin County GIS: Address points data
+4.  Google Maps API: Public transit time data
+5.  US Census Bureau: TIGER/line Shape files for tracts and block groups <br>
 
 The transit routes data from the Minnesota Geospatial Common includes line geometry of train and bus public transit lines in all of Minnesota. Similarly, the transit stops data contains point geometry for where each stop is along the lines. Also from the Minnesota Geospatial commons is the generalized land use data. This data contains polygon geometry that classifies areas within Minnesota as how the land is being used. We mainly focused on the residential use areas which include single family, multi-family, and mixed use residential areas. All other classifications were stored as “other”. <br>
 
@@ -71,7 +70,6 @@ read_sf_quietly <- function(path, ...) {
 
 ```
 
-
 ```{r Data, warning=FALSE, echo = FALSE, message = FALSE}
 shapefile_data <- read_sf_quietly("data/transit_routes/TransitRoutes.shp")
 census_tracts  <- read_sf_quietly("data/tl_2020_27_tract/tl_2020_27_tract.shp")
@@ -89,7 +87,6 @@ block_groups <- block_groups %>%
   filter(COUNTYFP == "053")
 
 ```
-
 
 ```{r Land Usage, warning=FALSE, echo = FALSE, message = FALSE}
 #Land usage data
@@ -155,7 +152,8 @@ mn_lake <- local({
 
 ### Visualization 1 - Transit Lines and Foodself Locations
 
-This visualization helps us understand the locations of and relationships between public transit lines and food shelves in Minneapolis. It's clear that food shelves are more concentrated in the center of the city, with significant coverage gaps in most peripheral and border areas. While the city appears to be well gridded with public transit lines, we'll need more data to see the relationship between transit times and these foodshelf locations. 
+This visualization helps us understand the locations of and relationships between public transit lines and food shelves in Minneapolis. It's clear that food shelves are more concentrated in the center of the city, with significant coverage gaps in most peripheral and border areas. While the city appears to be well gridded with public transit lines, we'll need more data to see the relationship between transit times and these foodshelf locations.
+
 ```{r Transit Routes, warning=FALSE, echo = FALSE, message = FALSE}
 
 # Create a version of the data for all transit routes in gray
@@ -262,7 +260,8 @@ leaflet_map
 ```
 
 ### Visualization 2 - Land Classification
-This map gives us a sense of the different ways land is used throughout Minneapolis. While residential areas are very common as we would expect, we can see large parts of the city that have a lack of single family homes. These areas include lakes and parks in the southwest and southeast, industrial areas in the northeast, and the University area in the center of the city, where multifamily and mixed use residential land classifications are much more common, which implies a greater population density in those areas than in single family residential neighborhoods. 
+
+This map gives us a sense of the different ways land is used throughout Minneapolis. While residential areas are very common as we would expect, we can see large parts of the city that have a lack of single family homes. These areas include lakes and parks in the southwest and southeast, industrial areas in the northeast, and the University area in the center of the city, where multifamily and mixed use residential land classifications are much more common, which implies a greater population density in those areas than in single family residential neighborhoods.
 
 ```{r Land Class, warning=FALSE, echo = FALSE, message = FALSE}
 
@@ -299,7 +298,7 @@ leaflet_map
 
 ### Visualization 3 - Used Addresses
 
-In order to limit the number of Google Maps API queries, we limited the number of addresses in our analysis to those ending in 3 (the numeric distribution of address numbers is in the appendix). This visualization confirms that those addresses are more than geographically representative, which saves us having to repeatedly query transit time information for hundreds of thousands of addresses. 
+In order to limit the number of Google Maps API queries, we limited the number of addresses in our analysis to those ending in 3 (the numeric distribution of address numbers is in the appendix). This visualization confirms that those addresses are more than geographically representative, which saves us having to repeatedly query transit time information for hundreds of thousands of addresses.
 
 ```{r Address Points, warning=FALSE, echo = FALSE, message = FALSE}
 
@@ -347,9 +346,9 @@ leaflet_map <- leaflet() %>%
 leaflet_map
 ```
 
-### Visualization 4 - Transit Times 
+### Visualization 4 - Transit Times
 
-To find the public transit time between each address and the closest food shelf, we built a script in Python that used the Google Maps API and a list of addresses of interest. First, we found the three nearest food shelves as the crow flies for an address in Minneapolis. While public transit time and straight line distance aren't the same, we wanted to limit API calls in this step, so we worked off the assumption that since transit time and geographic distance are related, we can use a shortlist of close grocery stores for a given address to avoid finding the transit time from every address to every food shelf. Second, we found the public transit times from each address to each of the 3 closest food shelves with the API. To standardize our results, the script was run at noon on Wednesday, November 20th. We picked the middle of a week day to minimize the likelihood of transit disruptions or lines not being in operation that might skew our analysis. Finally, we picked the lowest time of the 3 for each address, then saved the address, its closest food shelf, and the associated transit time into a data frame. 
+To find the public transit time between each address and the closest food shelf, we built a script in Python that used the Google Maps API and a list of addresses of interest. First, we found the three nearest food shelves as the crow flies for an address in Minneapolis. While public transit time and straight line distance aren't the same, we wanted to limit API calls in this step, so we worked off the assumption that since transit time and geographic distance are related, we can use a shortlist of close grocery stores for a given address to avoid finding the transit time from every address to every food shelf. Second, we found the public transit times from each address to each of the 3 closest food shelves with the API. To standardize our results, the script was run at noon on Wednesday, November 20th. We picked the middle of a week day to minimize the likelihood of transit disruptions or lines not being in operation that might skew our analysis. Finally, we picked the lowest time of the 3 for each address, then saved the address, its closest food shelf, and the associated transit time into a data frame.
 
 In this visualization, each block group is colored on a gradient based on the median transit time for the area. Each dot is a food shelf and each line is a bus or train transit route. We can isolate five areas of interest where longer median transit times seem to be concentrated: The Camden area in the northwest, the University area in the mid east, the Longfellow area in the south east, the Southwest area, and the Calhoun Isles area in the midwest. This is a useful map and gives us a strong starting point in terms of the areas of Minneapolis that we are interested in. However, this visualization needs more context to be useful to a policymaker. Specifically, we need to know how reliant each of these areas are on food shelves and how reliant each is on public transit.
 
@@ -435,9 +434,9 @@ leaflet_map
 
 ### Visualizations 5 & 6 - Demographic Variables
 
-To add valuable context to our median transit time visualization, we investigated the median income and % of car ownership in each census tract. These were important variables to understand in relation to our research question because higher income areas are less likely to be reliant on food shelves and areas with higher percentages of car ownership are less likely to be reliant on public transportation. This helps prevent a food shelf recommendation in a community that has high transit times because of wealth, not disadvantage, which would render our recommendation almost useless. 
+To add valuable context to our median transit time visualization, we investigated the median income and % of car ownership in each census tract. These were important variables to understand in relation to our research question because higher income areas are less likely to be reliant on food shelves and areas with higher percentages of car ownership are less likely to be reliant on public transportation. This helps prevent a food shelf recommendation in a community that has high transit times because of wealth, not disadvantage, which would render our recommendation almost useless.
 
-These plots let us probably rule out some of the initial areas of interest from our investigation. For example, high median incomes in the southwest part of the city are evidence that high transit times to food shelves are because no food shelves have been placed there due to lack of need, in other words not indicative of a food/transit desert. Our Percent No Vehicles plot shows that those in the middle of the city/in the University area are least likely to have cars while those in more peripheral areas are much more likely to have cars, which gives us the important context that those in the middle city area are likely more reliant on public transit and thus would be more meaningfully impacted by our intervention. 
+These plots let us probably rule out some of the initial areas of interest from our investigation. For example, high median incomes in the southwest part of the city are evidence that high transit times to food shelves are because no food shelves have been placed there due to lack of need, in other words not indicative of a food/transit desert. Our Percent No Vehicles plot shows that those in the middle of the city/in the University area are least likely to have cars while those in more peripheral areas are much more likely to have cars, which gives us the important context that those in the middle city area are likely more reliant on public transit and thus would be more meaningfully impacted by our intervention.
 
 ```{r Median Income, warning=FALSE, echo = FALSE, message = FALSE}
 income_blkgrps <- block_groups %>%
@@ -519,7 +518,6 @@ hennepin_demo <- hennepin_tracts %>%
 demo_tract <- st_intersection(hennepin_demo, mpls_shape)
 ```
 
-
 ```{r Perc No Vehicles, warning=FALSE, echo = FALSE, message = FALSE}
 # Create palette with reversed magma color scale for Census Tracts
 palette_tracts <- colorNumeric(
@@ -581,10 +579,9 @@ leaflet_map_tracts
 
 ### Visualization 7 - Accessibility Metric
 
-While visual comparisons between transit times, median income, and vehicle ownership are helpful, we wanted to take a step further and understand the coexistence of these factors to facilitate a more nuanced recommendation. In other words, since median income and car ownership affect the relevance of a given transit time average (do people in those communities rely on food shelves/public transit in the first place), we are interested in how census tracts stack up on a combined measurement of all three indicators. 
+While visual comparisons between transit times, median income, and vehicle ownership are helpful, we wanted to take a step further and understand the coexistence of these factors to facilitate a more nuanced recommendation. In other words, since median income and car ownership affect the relevance of a given transit time average (do people in those communities rely on food shelves/public transit in the first place), we are interested in how census tracts stack up on a combined measurement of all three indicators.
 
-This visualization shows a weighted average of how each census tract ranks in a combination of transit time, income, and car ownership. The final metric takes the average ranking of each census tract across the three indicators. If a census tract has high transit times but high incomes and high car ownership, that will inflate its accessibility score, communicating that it is not a priority food shelf location. We can see this in action with the south west part of the city as mentioned earlier. Even though the area has high transit times, high car ownership and median incomes mean the accessibility score identifies it as an area of lower concern. 
-
+This visualization shows a weighted average of how each census tract ranks in a combination of transit time, income, and car ownership. The final metric takes the average ranking of each census tract across the three indicators. If a census tract has high transit times but high incomes and high car ownership, that will inflate its accessibility score, communicating that it is not a priority food shelf location. We can see this in action with the south west part of the city as mentioned earlier. Even though the area has high transit times, high car ownership and median incomes mean the accessibility score identifies it as an area of lower concern.
 
 ```{r Accessibility_Prepro, warning=FALSE, echo = FALSE, message = FALSE}
 # Metric of Accessibility
@@ -660,22 +657,21 @@ leaflet_map <- leaflet() %>%
 # Display the map
 leaflet_map
 ```
+
 ### Results/Reccomendation
-The accessibility metric map shows that the three census tracts with the lowest accessibility score are all in the Marcy Homes neighborhood of Minneapolis, which a densely populated residential area near the center of the city. Looking at the map, it's also easy to see that there isn't a food shelf close to the area. Since transit times are substantial (~25 minutes), median income is low (< $50,000/year) and % no car ownership is high (~30%), it makes sense that the accessibility metric has flagged the area as the one most in need of additional support. 
+
+The accessibility metric map shows that the three census tracts with the lowest accessibility score are all in the Marcy Homes neighborhood of Minneapolis, which a densely populated residential area near the center of the city. Looking at the map, it's also easy to see that there isn't a food shelf close to the area. Since transit times are substantial (\~25 minutes), median income is low (\< \$50,000/year) and % no car ownership is high (\~30%), it makes sense that the accessibility metric has flagged the area as the one most in need of additional support.
 
 ### Limitations/Open Questions
 
-Our analysis has several important limitations. <br>
-- **Geographic Edge Cases**: We were unable to account for geographic edge cases, or food shelves outside the Minneapolis city border. This could change our results if a food shelf outside the city changed the transit time for a given neighborhood. However, this likely would not end up changing out recommendation as the Marcy Homes neighborhood is not on the edge of the city. <br>
-- **Grocery Stores**: We conducted a more narrow analysis of food shelves that did not include grocery stores, which could limit the effectiveness of our analysis if we overestimate the importance of food shelves for community food needs. Grocery stores were not included due to dataset issues and the difficulty of filtering based on price (some grocery stores might not be accessible to communities based on high prices), but their inclusion would be a good starting point for further analysis. <br> 
-- **Transit Time Reliability**: While we used empirical testing to verify the reliability and accuracy of our transit time metric - using our personal devices for addresses around the city like a normal person might when planning a trip to a food shelf from their address - we were unable to conduct unit tests to systematically test edge cases or transit time reliability, since changing transit times mean no two transit time results from two addresses are necessarily identical. <br>
-- **Accessibility Metric**: Any metric to weight the importance of transit times, median income, and car ownership will be inherently arbitrary. Additionally, there are potential multicollinearity issues between average income and car ownership that could lead to our analysis overestimating the impact of lower incomes in our accessibility metric, since being poor is essentially counted twice. Even though we thought both were important to include to capture reliability on food shelves and public transit, dimensionality reduction or more nuanced feature engineering could be an area for future improvement.  
+Our analysis has several important limitations. <br> - **Geographic Edge Cases**: We were unable to account for geographic edge cases, or food shelves outside the Minneapolis city border. This could change our results if a food shelf outside the city changed the transit time for a given neighborhood. However, this likely would not end up changing out recommendation as the Marcy Homes neighborhood is not on the edge of the city. <br> - **Grocery Stores**: We conducted a more narrow analysis of food shelves that did not include grocery stores, which could limit the effectiveness of our analysis if we overestimate the importance of food shelves for community food needs. Grocery stores were not included due to dataset issues and the difficulty of filtering based on price (some grocery stores might not be accessible to communities based on high prices), but their inclusion would be a good starting point for further analysis. <br> - **Transit Time Reliability**: While we used empirical testing to verify the reliability and accuracy of our transit time metric - using our personal devices for addresses around the city like a normal person might when planning a trip to a food shelf from their address - we were unable to conduct unit tests to systematically test edge cases or transit time reliability, since changing transit times mean no two transit time results from two addresses are necessarily identical. <br> - **Accessibility Metric**: Any metric to weight the importance of transit times, median income, and car ownership will be inherently arbitrary. Additionally, there are potential multicollinearity issues between average income and car ownership that could lead to our analysis overestimating the impact of lower incomes in our accessibility metric, since being poor is essentially counted twice. Even though we thought both were important to include to capture reliability on food shelves and public transit, dimensionality reduction or more nuanced feature engineering could be an area for future improvement.
 
 ## Appendix
 
 Appendix 1 - House Number Bar Plot
 
-Numeric distribution of Minneapolis house number ending digits. 
+Numeric distribution of Minneapolis house number ending digits.
+
 ```{r App 1, warning=FALSE, echo = FALSE, message = FALSE}
 #This is the bar plot justifying the choice of addresses in 3
 addresses <- read_csv('data/Address_Points.csv')
@@ -729,7 +725,7 @@ intersecting_tracts_indices <- unique(unlist(intersections))
 # Filter for intersection
 intersecting_census_tracts <- census_tracts[intersecting_tracts_indices, ]
 ```
- 
+
 ```{r Leaflet Map, fig.alt="Map showing transit routes in the Twin Cities metro area overlaid on intersecting census tracts. Different transit lines are color-coded, including Blue, Green, Red, Orange, A, C, and D Lines. The background map is a light grayscale. A legend in the bottom right explains the route colors, and a title at the top left reads 'Twin Cities Metro Area Transit Routes'. Census tracts are shaded in a semi-transparent gray.", fig.height=8, fig.width=10, warning=FALSE, echo = FALSE, message = FALSE}
 
 # Create the Leaflet map

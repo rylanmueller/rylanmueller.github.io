@@ -30,7 +30,7 @@ Using genetic data, it is possible to determine a [person's genetic origin](http
 
 Before jumping in, there are some key definitions you need to understand first.
 
-:::{.callout-note appearance="minimal"}
+::: {.callout-note appearance="minimal"}
 Allele - different possible nucleotides at a location on the genome
 
 Minor Allele Frequency (MAF) - the frequency that the less common allele is present at that location
@@ -43,7 +43,6 @@ Admixture - the mixing of populations resulting in a new population from multipl
 
 Linkage - genes close together on the genome are more likely to be passed down as a unit
 :::
-
 
 # Simulating Data
 
@@ -179,7 +178,6 @@ region2 <- c((squares / 2 + 1) : squares)
 region_dna <- read_csv('Data/allgenerationsdna.csv')
 ```
 
-
 To answer the research question, we start with simulating data. First, we created a 10 x 10 grid with 10 individuals in each square.
 
 ```{r}
@@ -201,7 +199,7 @@ individuals_viz %>%
   labs(x = "", y = "", fill = "Count", title = "Count of Individuals by Square")
 ```
 
-With 10 individuals in each square and 100 squares, we have enough data to simulate both movement and reproduction. Before exploring how those were accomplished, it is important to split individuals into separate regions for creating genetic variation between regions. 
+With 10 individuals in each square and 100 squares, we have enough data to simulate both movement and reproduction. Before exploring how those were accomplished, it is important to split individuals into separate regions for creating genetic variation between regions.
 
 ```{r}
 region_matrix_viz <- region_dna %>%
@@ -283,8 +281,6 @@ probability_df %>%
 
 With around a 65% chance, the most likely location for an individual to end up after one generation of movement is the same square. That probability isn't necessarily translatable, though. If an individual is in a square near the edge, their probability of staying in the same square increases.
 
-
-
 ```{r}
 #One probability matrix
 ncols = 10
@@ -319,7 +315,7 @@ probability_df %>%
 
 With an individual starting in a corner, they have an 81% chance of not moving.
 
-For each individual, in each square, this process is run. So for the 10 individuals in the bottom left corner, each has an 81% chance of staying. However, there is only about a 12% chance (0.81^10) of all 10 staying. Once all 1,000 individuals are "moved" (either to a new square or their initial square), one stage of movement is complete. For this study, we simulate 10 stages This allows opportunities for individuals to move to a new region, or just generally move around. The below graph shows the count of individuals per square after 10 generations.
+For each individual, in each square, this process is run. So for the 10 individuals in the bottom left corner, each has an 81% chance of staying. However, there is only about a 12% chance (0.81\^10) of all 10 staying. Once all 1,000 individuals are "moved" (either to a new square or their initial square), one stage of movement is complete. For this study, we simulate 10 stages This allows opportunities for individuals to move to a new region, or just generally move around. The below graph shows the count of individuals per square after 10 generations.
 
 ```{r}
 individuals_viz_10gen <- region_dna %>% 
@@ -344,7 +340,7 @@ As you can see, there is one square in the middle with no one. This happened in 
 
 ## Reproduction
 
-However, only looking at movement isn't enough. To answer our research question, we also need to simulate reproduction between each stage of movement. 
+However, only looking at movement isn't enough. To answer our research question, we also need to simulate reproduction between each stage of movement.
 
 For each square, two random individuals are sampled to create offspring. Remember, there are 1,000 SNPs for each individual. For each SNP, there is a 50% chance of Parent 1 contributing DNA and a 50% chance of Parent 2 contributing DNA. In real life, there would be a chance of mutation, though we ignored that possibility for two reasons. First, mutations are extraordinarily rare in real life, so to accurately capture the chance of a mutation, they would almost never happen in this study. Second, it was easier to simulate the data without mutations.
 
@@ -416,9 +412,9 @@ The MAF of the last 500 SNPs remains indistinguishable by region, regardless of 
 
 # Hidden Markov Model
 
-A Hidden Markov Model (HMM) is a tool for representing probability distributions over a sequence of observations. In a HMM, sequences of observations are made that are produced by a process that can’t be observed, or is hidden. This hidden process is what HMMs are trying to model, to determine the most likely sequence of events that produced the observations we make. The hidden states are summarized by a set of probabilities called the transition probabilities, as they summarize the transitions from state to state, and the observations are summarized by the emission probabilities. These observations occur at discrete steps, which could be time in the future, or could also represent locations within a sequence. This model also assumes the Markov Property which states that the current hidden state only depends on the previous hidden state. 
+A Hidden Markov Model (HMM) is a tool for representing probability distributions over a sequence of observations. In a HMM, sequences of observations are made that are produced by a process that can’t be observed, or is hidden. This hidden process is what HMMs are trying to model, to determine the most likely sequence of events that produced the observations we make. The hidden states are summarized by a set of probabilities called the transition probabilities, as they summarize the transitions from state to state, and the observations are summarized by the emission probabilities. These observations occur at discrete steps, which could be time in the future, or could also represent locations within a sequence. This model also assumes the Markov Property which states that the current hidden state only depends on the previous hidden state.
 
-## Example 
+## Example
 
 To give us a little intuition about HMMs, let’s look at an example with weather. Let’s say we have a friend, John, in Wisconsin whose outfits only depend on the weather. We’ll make the assumption that the weather on one day is dependent on the weather from the previous day. In Wisconsin it can be sunny, cloudy, or rainy. When it’s sunny, the following day has a 60% chance of being sunny again, a 30% chance of being cloudy, and a 10% chance of being rainy. If it happens to be cloudy, the following day has a 50% chance of being cloudy, a 30% chance of being rainy and a 20% chance of being sunny. Finally the probabilities for when it’s rainy are as follows, 40% chance of being rainy the next day, 30% chance of being cloudy and 30% chance of being sunny. We can visualize these probabilities like this:
 
@@ -428,7 +424,7 @@ The probabilities above are the transition probabilities. Now since we aren’t 
 
 ![The same visualization of weather probabilities with corresponding clothes probabilities dependent on weather.](Data/Images/WeatherExampleWithClothes.jpg)
 
-The visualization above outlines the framework for a hidden markov model. Over a sequence of days, we make observations of John’s outfits and from this sequence we can determine the pattern the weather most likely took over that sequence. For example if, over three days, we observe the sequence of yellow shirt, yellow shirt, grey shirt, the most likely sequence of weather, based on the transition and emission probabilities, would be sunny, sunny, cloudy. 
+The visualization above outlines the framework for a hidden markov model. Over a sequence of days, we make observations of John’s outfits and from this sequence we can determine the pattern the weather most likely took over that sequence. For example if, over three days, we observe the sequence of yellow shirt, yellow shirt, grey shirt, the most likely sequence of weather, based on the transition and emission probabilities, would be sunny, sunny, cloudy.
 
 ## In a Genetic Context
 
@@ -443,7 +439,6 @@ Now that we have a bit of a better idea of the equations STRUCTURE uses to sift 
 ![](Data/Images/STRUCTURE.jpg)
 
 When running, STRUCTURE reads the mainparams document within the same folder as the program, so this document is where you would set all the parameters that structure relies on. The only assumption that is required for STRUCTURE is the number of populations the data comes from, so this will differ depending on the data, but an accurate assumption is crucial for STRUCTURE to run accurately. The rest of the mainparams file contains a number of other parameters including the number of individuals in the data, number of loci, along with others. Accurate parameter definitions are crucial for the program to run correctly.
-
 
 # Results
 
@@ -514,7 +509,6 @@ error_rate %>%
   theme_minimal() +
   labs(x = "Error Rate Threshold", y = "Percentage Below Accepted Error Rate", title = "Prediction Accuracy")
 ```
-
 
 ## Limitations
 
