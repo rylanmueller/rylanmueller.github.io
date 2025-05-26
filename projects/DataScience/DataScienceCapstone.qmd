@@ -196,7 +196,7 @@ intersecting_block_groups <- st_intersection(block_groups, mpls_shape)
 lakes <- st_intersection(mpls_shape, mn_lake)
 
 # Create a Leaflet map to visualize grocery stores and intersecting transit routes
-leaflet_map <- leaflet() %>%
+leaflet() %>%
   setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
   addProviderTiles("CartoDB.Positron") %>%
   
@@ -257,8 +257,6 @@ leaflet_map <- leaflet() %>%
           title = "Map Legend",
           opacity = 1)
 
-# Print the map
-leaflet_map
 
 ```
 
@@ -278,7 +276,7 @@ land_usage <- land_usage %>%
 
 land_use_mlps <- st_intersection(land_usage, mpls_shape)
 
-leaflet_map <- leaflet() %>%
+leaflet() %>%
   setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(data = land_use_mlps,
@@ -295,8 +293,6 @@ leaflet_map <- leaflet() %>%
     title = "Land Classification",
     opacity = 1
   )
-
-leaflet_map
 ```
 
 ### Visualization 3 - Used Addresses
@@ -315,7 +311,7 @@ residential_addresses <- st_intersection(address_points3, residential_land)
 
 tracts_mlps <- st_intersection(census_tracts, mpls_shape)
 
-leaflet_map <- leaflet() %>%
+leaflet() %>%
   setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
   addProviderTiles("CartoDB.Positron") %>%
   
@@ -345,8 +341,6 @@ leaflet_map <- leaflet() %>%
     title = "Legend",
     opacity = 1
   )
-
-leaflet_map
 ```
 
 ### Visualization 4 - Transit Times
@@ -381,7 +375,7 @@ median_travel_blockg <- block_groups_mpls %>%
 magma_palette <- colorNumeric(palette = rev(viridis::magma(256)), 
                               domain = median_travel_blockg$median_transit_time)
 # Create the map
-leaflet_map <- leaflet() %>%
+leaflet() %>%
    setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%
   addProviderTiles("CartoDB.Positron") %>%
   
@@ -429,10 +423,6 @@ leaflet_map <- leaflet() %>%
             values = median_travel_blockg$median_transit_time,
             title = "Median Transit Time",
             opacity = 1)
-
-# Display the map
-leaflet_map
-
 ```
 
 ### Visualizations 5 & 6 - Demographic Variables
@@ -454,7 +444,7 @@ palette_block_groups <- colorNumeric(
 )
 
 # Create Leaflet map for Block Groups
-leaflet_map_block_groups <- leaflet(block_groups_mpls) %>%
+leaflet(block_groups_mpls) %>%
   setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
@@ -498,9 +488,6 @@ leaflet_map_block_groups <- leaflet(block_groups_mpls) %>%
     opacity = 1,
     labFormat = labelFormat(prefix = "$")
   )
-
-leaflet_map_block_groups
-
 ```
 
 ```{r Tracts, warning=FALSE, echo = FALSE, message = FALSE}
@@ -530,7 +517,7 @@ palette_tracts <- colorNumeric(
 )
 
 # Create Leaflet map for Census Tracts
-leaflet_map_tracts <- leaflet(demo_tract) %>%
+leaflet(demo_tract) %>%
   setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
   addProviderTiles("CartoDB.Positron") %>%
   addPolygons(
@@ -574,10 +561,6 @@ leaflet_map_tracts <- leaflet(demo_tract) %>%
     opacity = 1,
     labFormat = labelFormat(suffix = "%")
   )
-
-leaflet_map_tracts
-
-
 ```
 
 ### Visualization 7 - Accessibility Metric
@@ -608,7 +591,7 @@ palette_tracts <- colorNumeric(
 
 ```{r Accessibility Map, warning=FALSE, echo = FALSE, message = FALSE}
 # Create the map
-leaflet_map <- leaflet() %>%
+leaflet() %>%
    setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%
   addProviderTiles("CartoDB.Positron") %>%
   
@@ -656,9 +639,6 @@ leaflet_map <- leaflet() %>%
             values = access_mpls$accessibility,
             title = "Accessibility Score",
             opacity = 1)
-
-# Display the map
-leaflet_map
 ```
 
 ### Results/Reccomendation
@@ -732,7 +712,7 @@ intersecting_census_tracts <- census_tracts[intersecting_tracts_indices, ]
 ```{r Leaflet Map, fig.alt="Map showing transit routes in the Twin Cities metro area overlaid on intersecting census tracts. Different transit lines are color-coded, including Blue, Green, Red, Orange, A, C, and D Lines. The background map is a light grayscale. A legend in the bottom right explains the route colors, and a title at the top left reads 'Twin Cities Metro Area Transit Routes'. Census tracts are shaded in a semi-transparent gray.", fig.height=8, fig.width=10, warning=FALSE, echo = FALSE, message = FALSE}
 
 # Create the Leaflet map
-leaflet_map <- leaflet() %>%
+leaflet() %>%
   addProviderTiles("CartoDB.Positron") %>%
    addPolygons(data = intersecting_census_tracts,
                fillColor = "#A9A9A999",  
@@ -763,7 +743,4 @@ leaflet_map <- leaflet() %>%
     html = "<h2>Twin Cities Metro Area Transit Routes</h2>",  
     position = "topleft"
   )
-
-# Print the map
-leaflet_map
 ```
