@@ -21,6 +21,7 @@ website:
 
 format:
   html:
+    htmlwidgets: true
     theme: cosmo
     css: styles.css
     toc: true
