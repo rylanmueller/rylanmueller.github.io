@@ -14,7 +14,6 @@ format:
 
 ### Motivation and Research Question:
 
-
 In urban areas across the country, issues of food insecurity and public transportation are critical to the health and well-being of communities. This is certainly the case in Minnesota, where according to Hunger Solutions, 1 in 9 people, or nearly 500,000 Minnesotans, are food insecure. While food insecurity and public transit access are both issues that public policymakers and social scientists are concerned with, we wanted to investigate the intersection between the two with the research question: Where should a food shelf be placed in Minneapolis to support the most people in the most need? In other words, we were interested in the relationship between transit and food accessibility in Minneapolis. It seemed intuitive that a lack of access to reliable, fast public transit would exacerbate the effects of urban food deserts, making it far harder for disadvantaged or low income people to get to food sources. However, we wanted to better understand the nature of this relationship both geographically and quantitatively.
 
 Additional resources on food insecurity and public transit in Minnesota and the Twin Cities: <br> 1. University of Minnesota Food Security Dashboard: https://hfhl.umn.edu/resources/dashboardintro <br> 2. Minnesota Department of Health: https://www.health.state.mn.us/docs/communities/titlev/foodaccess.pdf <br> 3. Twin Cities Public Transit Background: https://doitgreen.org/topics/transportation/history-transit-twin-cities/ <br>
