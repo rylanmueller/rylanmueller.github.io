@@ -3,6 +3,9 @@ title: "Food Accessibility in Minneapolis: A Study of Public Transit"
 author: "Alayna Johnson, Rylan Mueller, and Sam Price"
 date: "2024-12-15"
 output: html_document
+format: 
+  html:
+    htmlwidgets: true
 ---
 
 ```{r setup, include=FALSE, echo = FALSE, message = FALSE, warning = FALSE}
