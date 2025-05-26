@@ -60,12 +60,6 @@ library(viridis)
 library(tigris)
 ```
 
-```{r}
-leaflet() %>%
-  addTiles() %>%
-  addMarkers(lng = -93.2650, lat = 44.9778, popup = "Minneapolis")
-```
-
 ```{r Create Quiet Function, warning=FALSE, echo = FALSE, message = FALSE}
 #Creates function so that reading sf files has no output in the knit html
 read_sf_quietly <- function(path, ...) {
