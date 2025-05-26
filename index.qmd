@@ -1,3 +1,11 @@
 ---
-title: "rylanmueller.github.io"
+title: "Rylan Mueller"
+image: media/headshot.jpg
+about: 
+  template: jolla
+  image-shape: round
+  image-width: 20em
+  links:
+  - text: Email
+    href: mailto:rylan.mueller25@gmail.com
 ---

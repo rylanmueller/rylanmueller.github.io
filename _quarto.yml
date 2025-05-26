@@ -3,18 +3,28 @@ project:
   output-dir: docs
 
 website:
-  title: "rylanmueller.github.io"
+  title: "Rylan Mueller"
   navbar:
     left:
       - href: index.qmd
         text: Home
-      - about.qmd
+      - href: media/resume.pdf
+        text: Resume
+      - text: "Capstones"
+        menu:
+          - text: "Population Inference Using a Hidden Markov Model Approach"
+            href: projects/StatisticalGenetics/statgen.qmd
+          - text: "Spending in Vain? The Effect of Spending in the 2016 and 2020 US Presidential Elections"
+            href: projects/PoliticalScience/PoliticalScienceCapstone.pdf
+          - text: "Food Accessibility in Minneapolis: A Study of Public Transit"
+            href: projects/DataScience/datascience.qmd
 
 format:
   html:
     theme: cosmo
     css: styles.css
     toc: true
+    page-layout: full
 
 editor: visual
 

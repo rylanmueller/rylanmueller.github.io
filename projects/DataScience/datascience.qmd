@@ -1,0 +1,770 @@
+---
+title: "Food Accessibility in Minneapolis: A Study of Public Transit"
+author: "Alayna Johnson, Rylan Mueller, and Sam Price"
+date: "2024-12-15"
+output: html_document
+---
+
+```{r setup, include=FALSE, echo = FALSE, message = FALSE, warning = FALSE}
+# knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+### Motivation and Research Question:
+In urban areas across the country, issues of food insecurity and public transportation are critical to the health and well-being of communities. This is certainly the case in Minnesota, where according to Hunger Solutions, 1 in 9 people, or nearly 500,000 Minnesotans, are food insecure. While food insecurity and public transit access are both issues that public policymakers and social scientists are concerned with, we wanted to investigate the intersection between the two with the research question: Where should a food shelf be placed in Minneapolis to support the most people in the most need? In other words, we were interested in the relationship between transit and food accessibility in Minneapolis. It seemed intuitive that a lack of access to reliable, fast public transit would exacerbate the effects of urban food deserts, making it far harder for disadvantaged or low income people to get to food sources. However, we wanted to better understand the nature of this relationship both geographically and quantitatively. 
+
+Additional resources on food insecurity and public transit in Minnesota and the Twin Cities: <br>
+1. University of Minnesota Food Security Dashboard: https://hfhl.umn.edu/resources/dashboardintro <br>
+2. Minnesota Department of Health: https://www.health.state.mn.us/docs/communities/titlev/foodaccess.pdf <br>
+3. Twin Cities Public Transit Background:  https://doitgreen.org/topics/transportation/history-transit-twin-cities/ <br>
+
+### Data Sources 
+We used many data sources to investigate our research questions. They included:
+
+1. Minnesota Geospatial Commons: Transit routes, stops, and land use
+2. Open Data Minneapolis: Grocery store and food shelf addresses and Minneapolis city boundary line
+3. Hennepin County GIS: Address points data
+4. Google Maps API: Public transit time data 
+5. US Census Bureau: TIGER/line Shape files for tracts and block groups  <br>
+
+The transit routes data from the Minnesota Geospatial Common includes line geometry of train and bus public transit lines in all of Minnesota. Similarly, the transit stops data contains point geometry for where each stop is along the lines. Also from the Minnesota Geospatial commons is the generalized land use data. This data contains polygon geometry that classifies areas within Minnesota as how the land is being used. We mainly focused on the residential use areas which include single family, multi-family, and mixed use residential areas. All other classifications were stored as “other”. <br>
+
+The boundary for Minneapolis was collected from Open Data Minneapolis and is a polygon shape that represents the spatial extent of Minneapolis. The grocery and food shelf data is also from this source and contains food inspection data for the city of Minneapolis. <br>
+
+Our address points for Minneapolis are from Hennepin County GIS and this file contains every single address in Hennepin county which we wanted to filter down to only Minneapolis residential areas. <br>
+
+The U.S. Census Bureau provided us with the shapefiles we used for smaller level polygon geographies like census tracts, block groups, and bodies of water. In order to create an accessibility metric we also collected two variables from the American Community Survey 5-year estimates 2022: percent vehicle ownership and median income. <br>
+
+### Data Cleaning and Preprocessing
+
+For all shape data, each was read in using st_read and transformed to the same coordinate reference system (4326, or, WGS84) to make sure all geometries are consistent for mapping. Grocery store points, address points, and travel time to nearest food shelf data were read in as csvs and changed into shapefiles with st_as_sf() and transformed to correct coordinate reference system using a similar method to before. To start, most data was on the county level and had all polygons/lines/points for Hennepin county. <br>
+
+In order to join data for mapping, the function st_intersects() was used. This function uses the geometry of each data layer and finds where they intersect to keep only those areas. So, in the new data you will have all geometries (polygon, line, and point) only within the area they overlap. All layers were somehow intersected with the Minneapolis boundary polygon in order to keep everything contained in our area of interest. The same intersection technique was used to find the residential addresses by intersecting all addresses ending in 3 with the specific category for residential areas. <br>
+
+In order to find which block group each address is located in, we used the st_join() function which classifies each point into the polygon they overlap area with and dropped the geometry to have a csv in order to make the accessibility metric. We later aggregated these to census tract level as the percent vehicle metric was only available on the census tract scale. <br>
+
+Food shelf data was filtered from Open Data Minneapolis. The facility category column had categories like grocery, meat markets, and food shelves. Then we removed any potential duplicate food shelves by making sure that business name and address were unique. <br>
+
+Address points are from Hennepin County GIS and are filtered to only have city = Minneapolis. Then we filtered to only include address numbers ending with a 3, which will be addressed below. Then again we removed duplicates by only keeping unique addresses. There were apartment buildings in the data set, so we only kept one address from those buildings.
+
+```{r Packages, warning=FALSE, echo = FALSE, message = FALSE}
+library(tidyverse)
+library(sf)
+library(leaflet)
+library(dplyr)
+library(stringr)
+library(leaflet.providers)
+library(viridis)
+library(tigris)
+```
+
+```{r Create Quiet Function, warning=FALSE, echo = FALSE, message = FALSE}
+#Creates function so that reading sf files has no output in the knit html
+read_sf_quietly <- function(path, ...) {
+  local({
+    temp <- NULL
+    capture.output({
+      temp <- sf::st_read(path, quiet = TRUE, ...)
+    })
+    temp
+  })
+}
+
+```
+
+
+```{r Data, warning=FALSE, echo = FALSE, message = FALSE}
+shapefile_data <- read_sf_quietly("data/transit_routes/TransitRoutes.shp")
+census_tracts  <- read_sf_quietly("data/tl_2020_27_tract/tl_2020_27_tract.shp")
+block_groups   <- read_sf_quietly("data/tl_2023_27_bg/tl_2023_27_bg.shp")
+
+
+# Transform to WGS84
+shapefile_data_wgs84 <- st_transform(shapefile_data, crs = 4326)
+
+census_tracts <- st_transform(census_tracts, crs = 4326)
+
+block_groups <- st_transform(block_groups, crs = 4326)
+
+block_groups <- block_groups %>%
+  filter(COUNTYFP == "053")
+
+```
+
+
+```{r Land Usage, warning=FALSE, echo = FALSE, message = FALSE}
+#Land usage data
+land_usage <- read_sf_quietly("data/shp_plan_generl_lnduse2020/GeneralizedLandUse2020.shp") %>%
+  st_make_valid() %>%
+  st_transform(crs = 4326)
+```
+
+```{r Point Data, warning=FALSE, echo = FALSE, message = FALSE}
+#Point Data and Extras 
+# grocery store inspection data for Minneapolis(filtering to food shelves)
+grocery <- read.csv("data/minneapolisgrocery.csv") %>%
+  filter(FacilityCategory == "FOODSHELF")
+
+grocery_sf <- st_as_sf(grocery, coords = c("X_WebMercator", "Y_WebMercator"), crs = 3857)
+
+grocery_sf <- st_transform(grocery_sf, crs = 4326)
+
+# All minneapolis address points ending in 3
+address_points3 <- read.csv("data/minneapolisaddressesendingin3.csv")
+
+address_points3 <- st_as_sf(address_points3, coords = c("LONGITUDE", "LATITUDE"), crs = 4326)
+
+# From Google API, time it takes from each address with public transit to get to food shelf with cleaning
+time_address <- read.csv("data/closest_foodshelf_latlong.csv") %>%
+   mutate(
+    transit_time = gsub(" mins?| hours?", "", transit_time), # Remove "min" and "hour"
+    transit_time = case_when(
+      transit_time == "1 2" ~ "62", # Convert "1 hour 2 mins" to 62
+      TRUE ~ transit_time
+    )
+  ) %>%
+  mutate(transit_time = as.numeric(transit_time)) # Convert to numeric
+
+time_address <- st_as_sf(time_address, coords = c("longitude", "latitude"), crs = 4326)
+
+# Boundary of Minneapolis
+mpls_shape <- read_sf_quietly("data/mpls_city_boundary/City_Boundary.shp")
+
+mpls_shape <- st_transform(mpls_shape, crs = 4326)
+
+# Transit stop point data
+transit_stops <- read_sf_quietly("data/shp_transit_stops/TransitStopsItineraryChange.shp")
+
+transit_stops <- st_transform(transit_stops, crs = 4326)
+
+# Lakes and Rivers data
+
+water_bodies <- read_sf_quietly("data/shp_water_lakes_rivers/LakesAndRivers.shp")
+water_bodies <- st_transform(water_bodies, crs = 4326)
+
+mn_lake <- local({
+  temp <- NULL
+  capture.output({
+    temp <- suppressMessages(suppressWarnings( #to suppress the progress bar from displaying in the html
+      tigris::area_water(state = "MN", county = "Hennepin")
+    ))
+  })
+  st_transform(temp, crs = 4326)
+})
+
+```
+
+### Visualization 1 - Transit Lines and Foodself Locations
+
+This visualization helps us understand the locations of and relationships between public transit lines and food shelves in Minneapolis. It's clear that food shelves are more concentrated in the center of the city, with significant coverage gaps in most peripheral and border areas. While the city appears to be well gridded with public transit lines, we'll need more data to see the relationship between transit times and these foodshelf locations. 
+```{r Transit Routes, warning=FALSE, echo = FALSE, message = FALSE}
+
+# Create a version of the data for all transit routes in gray
+all_transit_routes <- shapefile_data_wgs84 %>%
+  mutate(route_color = "#808080")  # Assign a plain gray color to all routes
+
+```
+
+```{r Intersections, warning=FALSE, echo = FALSE, message = FALSE}
+# Check for intersections between census tracts and grocery stores
+grocery_intersections <- st_intersects(census_tracts, grocery_sf)
+
+# Get the indices of census tracts that intersect with grocery stores
+intersecting_grocery_tracts_indices <- unique(unlist(grocery_intersections))
+
+# Filter the census tracts to include only those that intersect with grocery stores
+intersecting_grocery_tracts <- census_tracts[intersecting_grocery_tracts_indices, ]
+
+# Check for intersections between filtered census tracts and transit routes
+route_intersections <- st_intersects(intersecting_grocery_tracts, all_transit_routes)
+
+# Get the indices of census tracts that intersect with transit routes
+intersecting_route_grocery_tracts_indices <- unique(unlist(route_intersections))
+
+# Filter the census tracts again to include only those that also intersect with transit routes
+final_intersecting_tracts <- intersecting_grocery_tracts[intersecting_route_grocery_tracts_indices, ]
+
+```
+
+```{r Lines and Food Shelves, warning=FALSE, echo = FALSE, message = FALSE}
+intersecting_transit_routes <- st_intersection(all_transit_routes, mpls_shape)
+
+intersecting_transit_stops <- st_intersection(transit_stops, mpls_shape)
+
+intersecting_block_groups <- st_intersection(block_groups, mpls_shape)
+
+lakes <- st_intersection(mpls_shape, mn_lake)
+
+# Create a Leaflet map to visualize grocery stores and intersecting transit routes
+leaflet_map <- leaflet() %>%
+  setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  # Add the shape of Minneapolis
+  addPolygons(data = mpls_shape,  
+               color = "#505050",
+              fillColor = "#00000000",
+               weight = 2,
+               opacity = 0.7,
+               group = "Minneapolis Boundary") %>%
+  
+  
+# Add the block groups intersecting with Minneapolis Boundary
+   addPolygons(data = intersecting_block_groups, 
+              fillColor = "#fcffa4", 
+              color = "#fcffa4", 
+              weight = 1, 
+              fillOpacity = 0.5) %>%
+  
+  # Add intersecting transit routes in plain gray
+  addPolylines(data = intersecting_transit_routes, 
+               color = "#57106e",  # Gray color for intersecting transit routes
+               weight = 1, 
+               opacity = 0.7, 
+               group = "Transit Routes") %>%
+  
+    addPolygons(data = lakes,  
+               color = "#505050",
+              fillColor = "#b8c2e0",
+               weight = 1,
+               opacity = 1,
+              fillOpacity = 0.8,
+               group = "Lakes") %>%
+  
+  # Add grocery store markers
+  addCircleMarkers(data = grocery_sf, 
+                   color = "#f98e09", 
+                   radius = 3, 
+                   opacity = 0.8,
+                   label = ~paste("Store: ", BusinessName), 
+                   group = "Food Shelves") %>%
+  
+   addCircles(data = intersecting_transit_stops,
+                   color = "#57106e",
+                   radius = 0.5,
+                   group = "Transit Stops") %>%
+  
+  # Add layer control to toggle visibility of layers
+  addLayersControl(
+    overlayGroups = c("Transit Routes","Food Shelves", "Transit Stops"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  
+  # Add a legend
+ addLegend(position = "bottomright", 
+          colors = c("#f98e09", "#57106e", "#fcffa4"), 
+          labels = c("Food Shelf", "Transit", "Minneapolis"),
+          title = "Map Legend",
+          opacity = 1)
+
+# Print the map
+leaflet_map
+
+```
+
+### Visualization 2 - Land Classification
+This map gives us a sense of the different ways land is used throughout Minneapolis. While residential areas are very common as we would expect, we can see large parts of the city that have a lack of single family homes. These areas include lakes and parks in the southwest and southeast, industrial areas in the northeast, and the University area in the center of the city, where multifamily and mixed use residential land classifications are much more common, which implies a greater population density in those areas than in single family residential neighborhoods. 
+
+```{r Land Class, warning=FALSE, echo = FALSE, message = FALSE}
+
+land_usage <- land_usage %>%
+  mutate(category_color = case_when(
+    LUSE2020 %in% c(111, 112, 113, 116) ~ "#57106e",     # Single Family
+    LUSE2020 %in% c(114, 115) ~ "#bc3754",               # Multifamily
+    LUSE2020 == 141 ~ "#f98e09",                         # Mixed Use Residential
+    TRUE ~ "#fcffa4"                                     # All others
+  ))
+
+land_use_mlps <- st_intersection(land_usage, mpls_shape)
+
+leaflet_map <- leaflet() %>%
+  setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(data = land_use_mlps,
+    fillColor = ~category_color,
+    color = "black",
+    weight = 0.4,
+    fillOpacity = 0.7,
+    popup = ~paste("Land Use:", LUSE2020, "<br>", "Acres:", ACRES)
+  ) %>%
+  addLegend(
+    position = "bottomright",
+    colors = c("#57106e", "#bc3754", "#f98e09", "#fcffa4"),
+    labels = c("Single Family", "Multifamily", "Mixed Use Residential", "Others"),
+    title = "Land Classification",
+    opacity = 1
+  )
+
+leaflet_map
+```
+
+### Visualization 3 - Used Addresses
+
+In order to limit the number of Google Maps API queries, we limited the number of addresses in our analysis to those ending in 3 (the numeric distribution of address numbers is in the appendix). This visualization confirms that those addresses are more than geographically representative, which saves us having to repeatedly query transit time information for hundreds of thousands of addresses. 
+
+```{r Address Points, warning=FALSE, echo = FALSE, message = FALSE}
+
+address_points3 <- st_make_valid(address_points3)
+
+
+residential_land <- land_usage %>%
+  filter(LUSE2020 %in% c(111, 112, 113, 114, 115, 116, 141))
+
+residential_addresses <- st_intersection(address_points3, residential_land)
+
+tracts_mlps <- st_intersection(census_tracts, mpls_shape)
+
+leaflet_map <- leaflet() %>%
+  setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  addPolygons(data = tracts_mlps,
+    fillColor = "#fcffa4",
+    color = "black",
+    weight = 0.5,
+    fillOpacity = 0.5
+  ) %>%
+  
+   addCircles(data = residential_addresses,
+                   color = "#8a226a",
+                   radius = 3,
+                   group = "Selection of Residential Addresses") %>%
+  
+    addPolygons(data = lakes,  
+               color = "#505050",
+              fillColor = "#8f9cc2",
+               weight = 1,
+               opacity = 1,
+               group = "Lakes") %>%
+  
+  addLegend(
+    position = "bottomright",
+    colors = c("#8a226a"),
+    labels = c("Selected Residential Address"),
+    title = "Legend",
+    opacity = 1
+  )
+
+leaflet_map
+```
+
+### Visualization 4 - Transit Times 
+
+To find the public transit time between each address and the closest food shelf, we built a script in Python that used the Google Maps API and a list of addresses of interest. First, we found the three nearest food shelves as the crow flies for an address in Minneapolis. While public transit time and straight line distance aren't the same, we wanted to limit API calls in this step, so we worked off the assumption that since transit time and geographic distance are related, we can use a shortlist of close grocery stores for a given address to avoid finding the transit time from every address to every food shelf. Second, we found the public transit times from each address to each of the 3 closest food shelves with the API. To standardize our results, the script was run at noon on Wednesday, November 20th. We picked the middle of a week day to minimize the likelihood of transit disruptions or lines not being in operation that might skew our analysis. Finally, we picked the lowest time of the 3 for each address, then saved the address, its closest food shelf, and the associated transit time into a data frame. 
+
+In this visualization, each block group is colored on a gradient based on the median transit time for the area. Each dot is a food shelf and each line is a bus or train transit route. We can isolate five areas of interest where longer median transit times seem to be concentrated: The Camden area in the northwest, the University area in the mid east, the Longfellow area in the south east, the Southwest area, and the Calhoun Isles area in the midwest. This is a useful map and gives us a strong starting point in terms of the areas of Minneapolis that we are interested in. However, this visualization needs more context to be useful to a policymaker. Specifically, we need to know how reliant each of these areas are on food shelves and how reliant each is on public transit.
+
+```{r blockg_vars, warning=FALSE, echo = FALSE, message = FALSE}
+blockg_vars <- read.csv("data/blockg_vars.csv") %>%
+  pivot_wider(names_from = variable, values_from = estimate) %>%
+  select(-X) %>%
+  mutate(GEOID = as.character(GEOID))
+```
+
+```{r Transit Times, warning=FALSE, echo = FALSE, message = FALSE}
+income_blkgrps <- block_groups %>%
+  left_join(blockg_vars, by = c("GEOID" = "GEOID"))
+block_groups_mpls <- st_intersection(income_blkgrps, mpls_shape)
+
+points_with_block_groups <- time_address %>%
+  st_join(block_groups, join = st_within)
+
+median_time_block_group <- points_with_block_groups %>%
+  group_by(TRACTCE, BLKGRPCE) %>%
+  summarize(median_transit_time = median(transit_time, na.rm = TRUE)) %>%
+  ungroup()
+
+median_travel_blockg <- block_groups_mpls %>%
+  st_join(median_time_block_group)
+
+magma_palette <- colorNumeric(palette = rev(viridis::magma(256)), 
+                              domain = median_travel_blockg$median_transit_time)
+# Create the map
+leaflet_map <- leaflet() %>%
+   setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  # Add block groups with median transit times
+  addPolygons(data = median_travel_blockg,
+              fillColor = ~magma_palette(median_transit_time),
+              color = "black",
+              weight = 0.1,
+              fillOpacity = 0.7,
+              label = ~paste("Block Group:", GEOID, "<br>Median Time:", median_transit_time)) %>%
+  
+  addPolygons(data = lakes,  
+               color = "#505050",
+              fillColor = "#b8c2e0",
+               weight = 1,
+               opacity = 1,
+              fillOpacity = 0.8,
+               group = "Lakes") %>%
+  
+  # Add intersecting transit routes in plain gray
+  addPolylines(data = intersecting_transit_routes, 
+               color = "black",  # Gray color for intersecting transit routes
+               weight = 1, 
+               opacity = 0.7, 
+               group = "Transit Routes") %>%
+  
+  # Add grocery store markers
+  addCircleMarkers(data = grocery_sf, 
+                   color = "#1c2d69", 
+                   radius = 3, 
+                   opacity = 0.8,
+                   label = ~paste("Store: ", BusinessName), 
+                   group = "Food Shelves") %>%
+  
+  
+  # Add layer control to toggle visibility of layers
+  addLayersControl(
+    overlayGroups = c("Transit Routes","Food Shelves"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  
+  # Add the legend
+  addLegend("bottomright",
+            pal = magma_palette,
+            values = median_travel_blockg$median_transit_time,
+            title = "Median Transit Time",
+            opacity = 1)
+
+# Display the map
+leaflet_map
+
+```
+
+### Visualizations 5 & 6 - Demographic Variables
+
+To add valuable context to our median transit time visualization, we investigated the median income and % of car ownership in each census tract. These were important variables to understand in relation to our research question because higher income areas are less likely to be reliant on food shelves and areas with higher percentages of car ownership are less likely to be reliant on public transportation. This helps prevent a food shelf recommendation in a community that has high transit times because of wealth, not disadvantage, which would render our recommendation almost useless. 
+
+These plots let us probably rule out some of the initial areas of interest from our investigation. For example, high median incomes in the southwest part of the city are evidence that high transit times to food shelves are because no food shelves have been placed there due to lack of need, in other words not indicative of a food/transit desert. Our Percent No Vehicles plot shows that those in the middle of the city/in the University area are least likely to have cars while those in more peripheral areas are much more likely to have cars, which gives us the important context that those in the middle city area are likely more reliant on public transit and thus would be more meaningfully impacted by our intervention. 
+
+```{r Median Income, warning=FALSE, echo = FALSE, message = FALSE}
+income_blkgrps <- block_groups %>%
+  left_join(blockg_vars, by = c("GEOID" = "GEOID"))
+block_groups_mpls <- st_intersection(income_blkgrps, mpls_shape)
+
+# Create palette with reversed magma color scale for Block Groups
+palette_block_groups <- colorNumeric(
+  palette = rev(magma(256)),  # Reversed magma scale with 256 colors
+  domain = block_groups_mpls$median_income, 
+  na.color = "transparent"
+)
+
+# Create Leaflet map for Block Groups
+leaflet_map_block_groups <- leaflet(block_groups_mpls) %>%
+  setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    fillColor = ~palette_block_groups(median_income),
+    color = "black", 
+    weight = 0.1,
+    fillOpacity = 0.7, 
+    popup = ~paste(
+      "Block Group:", substr(GEOID, 6, nchar(GEOID)), "<br>",  # Extract part after '27053'
+      "Median Income: $", format(median_income, big.mark = ",")
+    )
+  ) %>%
+   
+  # Add intersecting transit routes in plain gray
+  addPolylines(data = intersecting_transit_routes, 
+               color = "black",  # Gray color for intersecting transit routes
+               weight = 1, 
+               opacity = 0.7, 
+               group = "Transit Routes") %>%
+  
+  # Add grocery store markers
+  addCircleMarkers(data = grocery_sf, 
+                   color = "#1c2d69", 
+                   radius = 3, 
+                   opacity = 0.8,
+                   label = ~paste("Store: ", BusinessName), 
+                   group = "Food Shelves") %>%
+  
+  
+  # Add layer control to toggle visibility of layers
+  addLayersControl(
+    overlayGroups = c("Transit Routes","Food Shelves"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  
+  addLegend(
+    position = "bottomright",
+    pal = palette_block_groups, 
+    values = block_groups_mpls$median_income,
+    title = "Median Income",
+    opacity = 1,
+    labFormat = labelFormat(prefix = "$")
+  )
+
+leaflet_map_block_groups
+
+```
+
+```{r Tracts, warning=FALSE, echo = FALSE, message = FALSE}
+
+tract_vehicles <- read.csv("data/tract_vehicles.csv") %>%
+  pivot_wider(names_from = variable, values_from = estimate) %>%
+  select(-X) %>%
+  mutate(GEOID = as.character(GEOID))
+
+census_tracts <- st_make_valid(census_tracts)
+
+hennepin_tracts <- census_tracts %>%
+  filter(str_starts(GEOID, "27053"))
+
+hennepin_demo <- hennepin_tracts %>%
+  left_join(tract_vehicles, by = "GEOID")
+
+demo_tract <- st_intersection(hennepin_demo, mpls_shape)
+```
+
+
+```{r Perc No Vehicles, warning=FALSE, echo = FALSE, message = FALSE}
+# Create palette with reversed magma color scale for Census Tracts
+palette_tracts <- colorNumeric(
+  palette = rev(magma(256)),  # Reversed magma scale with 256 colors
+  domain = demo_tract$perc_noVehicles, 
+  na.color = "transparent"
+)
+
+# Create Leaflet map for Census Tracts
+leaflet_map_tracts <- leaflet(demo_tract) %>%
+  setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%  # Center the map on Minneapolis
+  addProviderTiles("CartoDB.Positron") %>%
+  addPolygons(
+    fillColor = ~palette_tracts(perc_noVehicles),
+    color = "black", 
+    weight = 0.1,
+    fillOpacity = 0.7, 
+    popup = ~paste(
+      "Census Tract:", TRACTCE, "<br>",
+      "Percent No Vehicles: ", perc_noVehicles, "%"
+    )
+  ) %>%
+  
+  # Add intersecting transit routes in plain gray
+  addPolylines(data = intersecting_transit_routes, 
+               color = "black",  # Gray color for intersecting transit routes
+               weight = 1, 
+               opacity = 0.7, 
+               group = "Transit Routes") %>%
+  
+  # Add grocery store markers
+  addCircleMarkers(data = grocery_sf, 
+                   color = "#1c2d69", 
+                   radius = 3, 
+                   opacity = 0.8,
+                   label = ~paste("Store: ", BusinessName), 
+                   group = "Food Shelves") %>%
+  
+  
+  # Add layer control to toggle visibility of layers
+  addLayersControl(
+    overlayGroups = c("Transit Routes","Food Shelves"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  
+  addLegend(
+    position = "bottomright",
+    pal = palette_tracts, 
+    values = demo_tract$perc_noVehicles,
+    title = "Percent No Vehicles",
+    opacity = 1,
+    labFormat = labelFormat(suffix = "%")
+  )
+
+leaflet_map_tracts
+
+
+```
+
+### Visualization 7 - Accessibility Metric
+
+While visual comparisons between transit times, median income, and vehicle ownership are helpful, we wanted to take a step further and understand the coexistence of these factors to facilitate a more nuanced recommendation. In other words, since median income and car ownership affect the relevance of a given transit time average (do people in those communities rely on food shelves/public transit in the first place), we are interested in how census tracts stack up on a combined measurement of all three indicators. 
+
+This visualization shows a weighted average of how each census tract ranks in a combination of transit time, income, and car ownership. The final metric takes the average ranking of each census tract across the three indicators. If a census tract has high transit times but high incomes and high car ownership, that will inflate its accessibility score, communicating that it is not a priority food shelf location. We can see this in action with the south west part of the city as mentioned earlier. Even though the area has high transit times, high car ownership and median incomes mean the accessibility score identifies it as an area of lower concern. 
+
+
+```{r Accessibility_Prepro, warning=FALSE, echo = FALSE, message = FALSE}
+# Metric of Accessibility
+
+access_metric <- read.csv("data/accessibility_metric.csv") %>%
+  mutate(GEOID = as.character(GEOID))
+
+access_metric <- census_tracts %>%
+  left_join(access_metric, by = c("GEOID" = "GEOID"))
+
+access_mpls <- st_intersection(access_metric, mpls_shape)
+
+
+# Create palette with reversed magma color scale for Block Groups
+palette_tracts <- colorNumeric(
+  palette = (magma(256)),
+  domain = access_mpls$accessibility, 
+  na.color = "transparent"
+)
+```
+
+```{r Accessibility Map, warning=FALSE, echo = FALSE, message = FALSE}
+# Create the map
+leaflet_map <- leaflet() %>%
+   setView(lng = -93.2650, lat = 44.9778, zoom = 12) %>%
+  addProviderTiles("CartoDB.Positron") %>%
+  
+  # Add block groups with median transit times
+  addPolygons(data = access_mpls,
+              fillColor = ~palette_tracts(accessibility),
+              color = "black",
+              weight = 0.1,
+              fillOpacity = 0.7,
+              label = ~paste("Census Tract:", GEOID, "<br>Accessibility Score:", accessibility)) %>%
+  
+  addPolygons(data = lakes,  
+               color = "#505050",
+              fillColor = "#b8c2e0",
+               weight = 1,
+               opacity = 1,
+              fillOpacity = 0.8,
+               group = "Lakes") %>%
+  
+  # Add intersecting transit routes in plain gray
+  addPolylines(data = intersecting_transit_routes, 
+               color = "black",  # Gray color for intersecting transit routes
+               weight = 1, 
+               opacity = 0.7, 
+               group = "Transit Routes") %>%
+  
+  # Add grocery store markers
+  addCircleMarkers(data = grocery_sf, 
+                   color = "#1c2d69", 
+                   radius = 3, 
+                   opacity = 0.8,
+                   label = ~paste("Store: ", BusinessName), 
+                   group = "Food Shelves") %>%
+  
+  
+  # Add layer control to toggle visibility of layers
+  addLayersControl(
+    overlayGroups = c("Transit Routes","Food Shelves"),
+    options = layersControlOptions(collapsed = FALSE)
+  ) %>%
+  
+  # Add the legend
+  addLegend("bottomright",
+            pal = palette_tracts,
+            values = access_mpls$accessibility,
+            title = "Accessibility Score",
+            opacity = 1)
+
+# Display the map
+leaflet_map
+```
+### Results/Reccomendation
+The accessibility metric map shows that the three census tracts with the lowest accessibility score are all in the Marcy Homes neighborhood of Minneapolis, which a densely populated residential area near the center of the city. Looking at the map, it's also easy to see that there isn't a food shelf close to the area. Since transit times are substantial (~25 minutes), median income is low (< $50,000/year) and % no car ownership is high (~30%), it makes sense that the accessibility metric has flagged the area as the one most in need of additional support. 
+
+### Limitations/Open Questions
+
+Our analysis has several important limitations. <br>
+- **Geographic Edge Cases**: We were unable to account for geographic edge cases, or food shelves outside the Minneapolis city border. This could change our results if a food shelf outside the city changed the transit time for a given neighborhood. However, this likely would not end up changing out recommendation as the Marcy Homes neighborhood is not on the edge of the city. <br>
+- **Grocery Stores**: We conducted a more narrow analysis of food shelves that did not include grocery stores, which could limit the effectiveness of our analysis if we overestimate the importance of food shelves for community food needs. Grocery stores were not included due to dataset issues and the difficulty of filtering based on price (some grocery stores might not be accessible to communities based on high prices), but their inclusion would be a good starting point for further analysis. <br> 
+- **Transit Time Reliability**: While we used empirical testing to verify the reliability and accuracy of our transit time metric - using our personal devices for addresses around the city like a normal person might when planning a trip to a food shelf from their address - we were unable to conduct unit tests to systematically test edge cases or transit time reliability, since changing transit times mean no two transit time results from two addresses are necessarily identical. <br>
+- **Accessibility Metric**: Any metric to weight the importance of transit times, median income, and car ownership will be inherently arbitrary. Additionally, there are potential multicollinearity issues between average income and car ownership that could lead to our analysis overestimating the impact of lower incomes in our accessibility metric, since being poor is essentially counted twice. Even though we thought both were important to include to capture reliability on food shelves and public transit, dimensionality reduction or more nuanced feature engineering could be an area for future improvement.  
+
+## Appendix
+
+Appendix 1 - House Number Bar Plot
+
+Numeric distribution of Minneapolis house number ending digits. 
+```{r App 1, warning=FALSE, echo = FALSE, message = FALSE}
+#This is the bar plot justifying the choice of addresses in 3
+addresses <- read_csv('data/Address_Points.csv')
+
+addresses %>% 
+  mutate(number = as.character(ANUMBER),
+         number = substr(number, nchar(number), nchar(number))) %>% 
+  filter(MUNI_NAME == "Minneapolis") %>% 
+  ggplot(aes(x = number)) +
+  geom_bar() + 
+  labs(title = 'Ending House Numbers in Minneapolis')
+
+numberending3 <- addresses %>% 
+  mutate(number = as.character(ANUMBER),
+         number = substr(number, nchar(number), nchar(number))) %>% 
+  filter(number == 3,
+         MUNI_NAME == "Minneapolis")
+
+#food_shelves <- read_csv('../ClassifyStores/minneapolisfoodshelves.csv')
+```
+
+Appendix 2 - Twin Cities Metro Transit Routes
+
+```{r Route Colors, warning=FALSE, echo = FALSE, message = FALSE}
+#Cleaning/Wrangling
+# Create the new route_color variable
+transit_routes <- shapefile_data_wgs84 %>%
+  mutate(route_color = case_when(
+    str_detect(RouteDescr, regex("Blue Line", ignore_case = TRUE)) ~ "#0062B2",
+    str_detect(RouteDescr, regex("Green Line", ignore_case = TRUE)) ~ "#009E73",
+    str_detect(RouteDescr, regex("Red Line", ignore_case = TRUE)) ~ "#D54000",
+    str_detect(RouteDescr, regex("Orange Line", ignore_case = TRUE)) ~ "#E69F00",
+    str_detect(RouteDescr, regex("A Line", ignore_case = TRUE)) ~ "#F0D442",
+    str_detect(RouteDescr, regex("C Line", ignore_case = TRUE)) ~ "#CC79A7",
+    str_detect(RouteDescr, regex("D Line", ignore_case = TRUE)) ~ "#56B4E9",
+    TRUE ~ "#00000000"
+  ))
+
+transit_routes <- transit_routes %>%
+  filter(route_color != "#00000000")
+
+```
+
+```{r Transit Route Int, warning=FALSE, echo = FALSE, message = FALSE}
+
+intersections <- st_intersects(transit_routes, census_tracts)
+
+# Get census tracts that intersect with transit routes
+intersecting_tracts_indices <- unique(unlist(intersections))
+
+# Filter for intersection
+intersecting_census_tracts <- census_tracts[intersecting_tracts_indices, ]
+```
+ 
+```{r Leaflet Map, fig.alt="Map showing transit routes in the Twin Cities metro area overlaid on intersecting census tracts. Different transit lines are color-coded, including Blue, Green, Red, Orange, A, C, and D Lines. The background map is a light grayscale. A legend in the bottom right explains the route colors, and a title at the top left reads 'Twin Cities Metro Area Transit Routes'. Census tracts are shaded in a semi-transparent gray.", fig.height=8, fig.width=10, warning=FALSE, echo = FALSE, message = FALSE}
+
+# Create the Leaflet map
+leaflet_map <- leaflet() %>%
+  addProviderTiles("CartoDB.Positron") %>%
+   addPolygons(data = intersecting_census_tracts,
+               fillColor = "#A9A9A999",  
+               color = "#A9A9A9",          
+               weight = 1,
+               opacity = 1,
+               label = ~paste("Census Tract: ", TRACTCE),  # Adjust to match your census tract identifier
+               labelOptions = labelOptions(style = list("font-weight" = "normal", padding = "3px 8px"))) %>%
+  addPolylines(data = transit_routes,
+                color = ~route_color, 
+                weight = 2.5,
+                opacity = 0.7,
+                highlightOptions = highlightOptions(
+                  color = "white",
+                  weight = 2,
+                  bringToFront = TRUE,
+                  sendToBack = FALSE
+                ),
+                label = ~paste("Route Description: ", RouteDescr, "<br>", "Route Class: ", RouteClass)) %>%
+  addLegend(
+    position = "bottomright",
+    title = "Route Colors",
+  colors = c("#0062B2", "#009E73", "#D54000", "#E69F00", "#F0D442", "#CC79A7", "#56B4E9"),
+    labels = c("Blue Line", "Green Line", "Red Line", "Orange Line", "A Line", "C Line", "D Line"),
+    opacity = 1
+  ) %>%
+  addControl(
+    html = "<h2>Twin Cities Metro Area Transit Routes</h2>",  
+    position = "topleft"
+  )
+
+# Print the map
+leaflet_map
+```
