@@ -8,6 +8,8 @@ about:
   links:
   - text: Email
     href: mailto:rylan.mueller25@gmail.com
+  - text: News Articles
+    href: https://themacweekly.com/staff_name/rylan-mueller/
 ---
 
 <!-- Other ideas: -->
