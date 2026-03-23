@@ -8,7 +8,7 @@ website:
     left:
       - href: index.qmd
         text: Home
-      - href: media/GitHubResume.pdf
+      - href: media/GitHub Resume.pdf
         text: Resume
       - text: "Capstones"
         menu:
